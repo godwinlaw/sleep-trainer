@@ -1,0 +1,11 @@
+export const DAY_START_HOUR = 8;
+export const NIGHT_START_HOUR = 20;
+export const TARGET_DAY_FEEDS = 4;
+export const MIN_DAILY_OZ = 24;
+export const CAUTION_OZ = 16;
+export const INITIAL_INTERVAL_MIN = 180;
+export const TARGET_INTERVAL_MIN = 240;
+export const INTERVAL_STEP_MIN = 15;
+export const MORNING_NAP_TARGET_MIN = 60;
+export const AFTERNOON_NAP_TARGET_MIN = 120;
+export const NIGHT_TOTAL_MIN = 720;

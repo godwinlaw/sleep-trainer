@@ -1,0 +1,311 @@
+     ╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+     │ Sleep Training Tracker — Implementation Plan                                                   │
+     │                                                                                                │
+     │ Context                                                                                        │
+     │                                                                                                │
+     │ Building a greenfield sleep training tracker based on the "Twelve Hours in Twelve Weeks"       │
+     │ methodology. The app tracks three pillars: daytime feeds (stretching intervals from 3h to 4h), │
+     │  nighttime feeds (eliminating them), and naps (hitting duration targets). Currently only .env  │
+     │ (Firebase config) and requirements.md exist — everything must be built from scratch.           │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Architecture                                                                                   │
+     │                                                                                                │
+     │ src/                                                                                           │
+     │ ├── app/                        # Next.js App Router                                           │
+     │ │   ├── layout.tsx              # Root layout (nav, providers)                                 │
+     │ │   ├── page.tsx                # Today View dashboard                                         │
+     │ │   ├── history/page.tsx        # History View                                                 │
+     │ │   ├── progress/page.tsx       # Overall Progress Dashboard                                   │
+     │ │   ├── log/                                                                                   │
+     │ │   │   ├── feed/page.tsx       # Log/Edit Feed                                                │
+     │ │   │   └── nap/page.tsx        # Log/Edit Nap                                                 │
+     │ │   ├── settings/page.tsx       # Settings                                                     │
+     │ │   └── globals.css             # Tailwind base + custom tokens                                │
+     │ ├── lib/                                                                                       │
+     │ │   ├── firebase.ts             # Firebase init + Firestore instance                           │
+     │ │   ├── types.ts                # TypeScript interfaces                                        │
+     │ │   ├── constants.ts            # Magic numbers as named constants                             │
+     │ │   ├── feeds.ts                # Feed CRUD + queries                                          │
+     │ │   ├── naps.ts                 # Nap CRUD + queries                                           │
+     │ │   ├── settings.ts             # Settings CRUD                                                │
+     │ │   ├── calculations.ts         # Pure functions: intervals, summaries, progress               │
+     │ │   └── date-utils.ts           # Date/time helpers                                            │
+     │ ├── hooks/                                                                                     │
+     │ │   ├── useFeeds.ts             # Subscribe to feeds for a date                                │
+     │ │   ├── useNaps.ts              # Subscribe to naps for a date                                 │
+     │ │   ├── useSettings.ts          # Subscribe to settings                                        │
+     │ │   ├── useDailySummary.ts      # Derived daily summary                                        │
+     │ │   └── useProgress.ts          # Multi-day progress data                                      │
+     │ ├── components/                                                                                │
+     │ │   ├── ui/                     # Card, Button, Input, Select, Modal, ProgressBar, TimePicker, │
+     │  Badge                                                                                         │
+     │ │   ├── layout/                 # AppShell, BottomNav, Header                                  │
+     │ │   ├── feed/                   # FeedForm, FeedCard, FeedList                                 │
+     │ │   ├── nap/                    # NapForm, NapCard, NapList                                    │
+     │ │   ├── today/                  # Timeline, NextFeedTarget, NightSummary, NapSummary,          │
+     │ OzCounter, QuickActions                                                                        │
+     │ │   ├── history/                # CalendarPicker, DayDetail                                    │
+     │ │   ├── progress/               # IntervalProgress, NightProgress, NapProgress, MilestoneCard, │
+     │  TrendChart, Celebration                                                                       │
+     │ │   └── settings/               # SettingsForm                                                 │
+     │ └── __tests__/                                                                                 │
+     │     ├── calculations.test.ts                                                                   │
+     │     ├── date-utils.test.ts                                                                     │
+     │     ├── feed-logic.test.ts                                                                     │
+     │     └── progress-logic.test.ts                                                                 │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 1: Project Scaffold + Design System                                                     │
+     │                                                                                                │
+     │ Goal: npm run dev and npm run build succeed. All 6 routes render placeholders. Navigation      │
+     │ works.                                                                                         │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - Init via npx create-next-app@latest — package.json, tsconfig, next.config, postcss,          │
+     │ .gitignore                                                                                     │
+     │ - tailwind.config.ts — custom palette (calming pastels: slate-blue, soft-teal, warm-cream,     │
+     │ muted-rose), rounded-2xl tokens, shadow scale                                                  │
+     │ - src/app/globals.css — Tailwind directives, CSS custom properties, focus-visible rings        │
+     │ - src/lib/constants.ts — DAY_START_HOUR=8, NIGHT_START_HOUR=20, TARGET_DAY_FEEDS=4,            │
+     │ MIN_DAILY_OZ=24, CAUTION_OZ=16, INITIAL_INTERVAL_MIN=180, TARGET_INTERVAL_MIN=240,             │
+     │ INTERVAL_STEP_MIN=15, MORNING_NAP_TARGET_MIN=60, AFTERNOON_NAP_TARGET_MIN=120,                 │
+     │ NIGHT_TOTAL_MIN=720                                                                            │
+     │ - src/lib/types.ts — FeedRecord, NapRecord, DailySummary, AppSettings, FeedMethod, FeedType,   │
+     │ NapType                                                                                        │
+     │ - src/components/ui/ — Card (hover lift), Button (variants + loading), Input (glow ring),      │
+     │ Select, Modal (focus trap + Framer Motion), ProgressBar (animated fill, color variants, ARIA), │
+     │  Badge                                                                                         │
+     │ - src/components/layout/ — AppShell, BottomNav (4 tabs with layoutId), Header                  │
+     │ - src/app/layout.tsx — Root layout with AppShell + BottomNav                                   │
+     │ - Placeholder pages for all 6 routes                                                           │
+     │ - README.md                                                                                    │
+     │                                                                                                │
+     │ Verify: npm run build zero errors, all routes render, bottom nav works, mobile 375px looks     │
+     │ good, keyboard focus visible                                                                   │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 2: Firebase + Data Layer + Tests                                                        │
+     │                                                                                                │
+     │ Goal: Firebase connected. All CRUD ops work. Pure calculation functions tested.                │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/lib/firebase.ts — Init from env vars, export db, getApps() guard                         │
+     │ - src/lib/date-utils.ts — isNightTime, getFeedType, inferNapType, getDateString,               │
+     │ getNightDateRange (8PM prev day to 8AM), formatTime, formatDuration, minutesBetween            │
+     │ - src/lib/feeds.ts — addFeed, updateFeed, deleteFeed, getFeedsForDate, getNightFeeds (8PM-8AM  │
+     │ query), subscribeFeedsForDate, assignFeedNumber (1-4 chronological)                            │
+     │ - src/lib/naps.ts — addNap, updateNap, deleteNap, getNapsForDate, subscribeNapsForDate         │
+     │ - src/lib/settings.ts — getSettings, updateSettings, subscribeSettings, defaults               │
+     │ - src/lib/calculations.ts — computeDailySummary, computeFeedIntervals, computeAverageInterval, │
+     │  computeLongestNightStretch, computeTotalOz, computeBreastOz (dur*0.1),                        │
+     │ shouldSuggestIntervalAdvance (2 consecutive days within +-10min), getNapWarning (between feeds │
+     │  3-4), getOzWarningLevel ("ok"/"caution"/"warning")                                            │
+     │ - src/__tests__/date-utils.test.ts                                                             │
+     │ - src/__tests__/calculations.test.ts                                                           │
+     │ - src/__tests__/feed-logic.test.ts                                                             │
+     │                                                                                                │
+     │ Verify: All tests pass, Firebase inits without errors, npm run build succeeds                  │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 3: React Hooks                                                                          │
+     │                                                                                                │
+     │ Goal: Hooks bridge Firestore to React with real-time subscriptions.                            │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/hooks/useFeeds.ts — subscribe to date, return { dayFeeds, nightFeeds, loading, error },  │
+     │ separate day/night, assign feed numbers                                                        │
+     │ - src/hooks/useNaps.ts — subscribe to date, return { naps, morningNap, afternoonNap, loading,  │
+     │ error }                                                                                        │
+     │ - src/hooks/useSettings.ts — subscribe to settings, return { settings, updateSettings, loading │
+     │  }                                                                                             │
+     │ - src/hooks/useDailySummary.ts — compose useFeeds + useNaps, return DailySummary               │
+     │ - src/hooks/useProgress.ts — fetch 7-14 day range, compute interval trend, night trend, nap    │
+     │ consistency, milestone detection                                                               │
+     │                                                                                                │
+     │ Verify: Hook in test component shows real-time data, subscription cleanup on unmount, npm run  │
+     │ build succeeds                                                                                 │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 4: Feed Logging                                                                         │
+     │                                                                                                │
+     │ Goal: Complete feed form — log, edit, delete, with all auto-computations.                      │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/ui/TimePicker.tsx — native time input, defaults to now, accessible            │
+     │ - src/components/feed/FeedForm.tsx — bottle/breast toggle, auto day/night from time (Badge),   │
+     │ auto feed number, breast: oz = dur*0.1, validation, 5th feed notice, edit mode, Framer Motion  │
+     │ animations                                                                                     │
+     │ - src/app/log/feed/page.tsx — Header + FeedForm, ?id=xxx for edit, delete with Modal           │
+     │ confirmation                                                                                   │
+     │                                                                                                │
+     │ Verify: Log bottle feed (time, oz), log breast feed (time, dur, oz auto-calc), day/night       │
+     │ auto-classifies, feed number assigns, edit loads data, delete works, 5th day feed shows        │
+     │ notice, keyboard nav works, npm run build                                                      │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 5: Nap Logging                                                                          │
+     │                                                                                                │
+     │ Goal: Complete nap form with auto-inferred type and warnings.                                  │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/nap/NapForm.tsx — TimePicker, duration, auto nap type from feed times         │
+     │ (overridable), feeds-3-4 warning, validation, edit mode                                        │
+     │ - src/app/log/nap/page.tsx — Header + NapForm, ?id=xxx for edit, delete                        │
+     │                                                                                                │
+     │ Verify: Log morning/afternoon nap, type auto-infers correctly, feed 3-4 warning shows, manual  │
+     │ override works, edit/delete work, npm run build                                                │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 6: Today View Dashboard                                                                 │
+     │                                                                                                │
+     │ Goal: Primary dashboard with all widgets, timeline, oz tracking, quick actions.                │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/feed/FeedCard.tsx — compact card, feed# badge, tap to edit, stagger animation │
+     │ - src/components/feed/FeedList.tsx — vertical list of FeedCards                                │
+     │ - src/components/nap/NapCard.tsx — nap type badge, duration vs target                          │
+     │ - src/components/nap/NapList.tsx                                                               │
+     │ - src/components/today/Timeline.tsx — SVG 8AM-8PM bar, feed dots, nap ranges, current time     │
+     │ indicator, next target marker                                                                  │
+     │ - src/components/today/NextFeedTarget.tsx — last feed + interval goal, countdown if <30min,    │
+     │ pulse animation                                                                                │
+     │ - src/components/today/NightSummary.tsx — "Night of Mar 27-28", feed count, oz, longest        │
+     │ stretch, color-coded                                                                           │
+     │ - src/components/today/NapSummary.tsx — morning vs 60min, afternoon vs 120min, with            │
+     │ ProgressBars                                                                                   │
+     │ - src/components/today/OzCounter.tsx — "14.5/24 oz", ProgressBar (green/amber/red), warning    │
+     │ banner per AC-2.5.1c, role="meter"                                                             │
+     │ - src/components/today/QuickActions.tsx — sticky Log Feed + Log Nap buttons above BottomNav    │
+     │ - src/app/page.tsx — compose all widgets, useDailySummary, useSettings                         │
+     │                                                                                                │
+     │ Verify: All sections render with data and empty states, timeline accurate, oz counter updates  │
+     │ live, warning thresholds work, quick actions navigate, night summary correct (8PM-8AM), mobile │
+     │  clean, npm run build                                                                          │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 7: History View                                                                         │
+     │                                                                                                │
+     │ Goal: Browse past days with calendar picker, reusing Today View components.                    │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/history/CalendarPicker.tsx — month grid, prev/next nav, selected date         │
+     │ animated, ARIA grid role, arrow key nav, data-dot indicators                                   │
+     │ - src/components/history/DayDetail.tsx — reuse NightSummary, NapSummary, OzCounter, Timeline,  │
+     │ FeedList, NapList, low-oz warning for past days                                                │
+     │ - src/app/history/page.tsx — CalendarPicker + DayDetail, defaults to yesterday,                │
+     │ ?date=YYYY-MM-DD deep link                                                                     │
+     │                                                                                                │
+     │ Verify: Calendar renders, month navigation, date selection loads data, low-oz warning on past  │
+     │ days, empty state, keyboard nav, deep link, npm run build                                      │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 8: Daytime Feed Progress (Step 1)                                                       │
+     │                                                                                                │
+     │ Goal: Interval stretching tracker — 3h to 4h in 15min increments.                              │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/progress/IntervalProgress.tsx — current goal display, 5-step indicator        │
+     │ (3:00/3:15/3:30/3:45/4:00) with animated fill, today's avg vs goal, suggestion banner after 2  │
+     │ consecutive on-target days, advance + manual adjust buttons                                    │
+     │ - src/components/progress/TrendChart.tsx — reusable SVG line/bar chart, target dashed line,    │
+     │ responsive viewBox, sr-only data table                                                         │
+     │ - Update src/app/progress/page.tsx — add IntervalProgress + TrendChart                         │
+     │                                                                                                │
+     │ Verify: Step indicator correct, today's avg computes correctly, trend chart renders 7-14 days, │
+     │  advance suggestion triggers appropriately, manual adjust works, SVG responsive, npm run build │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 9: Nighttime Feed Progress (Step 2)                                                     │
+     │                                                                                                │
+     │ Goal: Night feed elimination tracker with milestones.                                          │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/progress/NightProgress.tsx — 3 TrendCharts (count->0, oz->0,                  │
+     │ stretch->720min), current night stats, milestone display                                       │
+     │ - src/components/progress/MilestoneCard.tsx — icon + title + date, Framer Motion scale + glow  │
+     │ entrance                                                                                       │
+     │ - Add to src/lib/calculations.ts — detectNightMilestones (first 1-feed night, first 0-feed     │
+     │ night, stretch records 6h/8h/10h/12h)                                                          │
+     │ - src/__tests__/progress-logic.test.ts                                                         │
+     │ - Update src/app/progress/page.tsx                                                             │
+     │                                                                                                │
+     │ Verify: Three trend charts render, milestones detect correctly, milestone cards animate, empty │
+     │  state, tests pass, npm run build                                                              │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 10: Nap Progress + Overall Dashboard                                                    │
+     │                                                                                                │
+     │ Goal: Nap consistency tracker, composed progress dashboard with celebrations.                  │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/progress/NapProgress.tsx — today naps vs targets, weekly 7-day grid           │
+     │ (green/amber/red/gray), flag feeds-3-4 naps, bar chart                                         │
+     │ - src/components/progress/Celebration.tsx — Framer Motion confetti, triggered on new           │
+     │ milestones, auto-dismiss, prefers-reduced-motion aware, ARIA live                              │
+     │ - src/app/progress/page.tsx — complete: 3 step status cards at top, expandable detail          │
+     │ sections, visual current-step indicator, Celebration on milestones, staggered entrance +       │
+     │ scroll reveal                                                                                  │
+     │                                                                                                │
+     │ Verify: Nap weekly consistency correct, feeds-3-4 flagged, all 3 steps on dashboard,           │
+     │ celebration triggers, prefers-reduced-motion respected, npm run build                          │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 11: Settings                                                                            │
+     │                                                                                                │
+     │ Goal: Configurable app parameters persisted to Firestore.                                      │
+     │                                                                                                │
+     │ Files to create:                                                                               │
+     │ - src/components/settings/SettingsForm.tsx — baby name, start date, interval goal (select      │
+     │ 3:00-4:00), daily oz minimum, auto-save or Save button                                         │
+     │ - src/app/settings/page.tsx — Header + SettingsForm                                            │
+     │                                                                                                │
+     │ Verify: Settings persist across reloads, interval goal change reflected in Today View, oz      │
+     │ minimum change reflected in OzCounter, npm run build                                           │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Module 12: Polish + Final QA                                                                   │
+     │                                                                                                │
+     │ Goal: Visual consistency, animation refinement, accessibility, edge cases, docs.               │
+     │                                                                                                │
+     │ Tasks:                                                                                         │
+     │ 1. Visual audit — rounded-2xl on all cards, shadow-sm/shadow-lg, typography hierarchy, color   │
+     │ palette consistency, 8px spacing grid                                                          │
+     │ 2. Animation polish — whileInView scroll reveal, hover lift all cards, glow ring all inputs,   │
+     │ animated nav, 60fps, prefers-reduced-motion                                                    │
+     │ 3. Accessibility — WCAG 2.1 AA contrast, alt/aria-label on icons, logical tab order, screen    │
+     │ reader nav, focus states, semantic HTML                                                        │
+     │ 4. Edge cases — empty states, first-day experience, midnight boundary, long notes, rapid       │
+     │ logging, Firebase offline                                                                      │
+     │ 5. Create PROGRESS.md, update README.md with final setup instructions                          │
+     │                                                                                                │
+     │ Verify: Lighthouse accessibility >= 90, all routes work with and without data, all CRUD        │
+     │ end-to-end, all animations smooth, keyboard-only nav works, npm run build zero errors, npm     │
+     │ test all pass, mobile/tablet/desktop responsive                                                │
+     │                                                                                                │
+     │ ---                                                                                            │
+     │ Dependency Graph                                                                               │
+     │                                                                                                │
+     │ M1 (Scaffold)                                                                                  │
+     │  └─> M2 (Firebase + Data Layer)                                                                │
+     │       └─> M3 (Hooks)                                                                           │
+     │            ├─> M4 (Feed Log) ──┐                                                               │
+     │            ├─> M5 (Nap Log) ───┤                                                               │
+     │            │                    └─> M6 (Today View)                                            │
+     │            │                         └─> M7 (History)                                          │
+     │            └─> M8 (Day Progress)                                                               │
+     │                 └─> M9 (Night Progress)                                                        │
+     │                      └─> M10 (Nap Progress + Dashboard)                                        │
+     │                           └─> M11 (Settings)                                                   │
+     │                                └─> M12 (Polish)                                                │
+     │                                                                                                │
+     │ Parallelizable: M4 + M5 can run in parallel. M11 could run after M3 but sequenced late (low    │
+     │ priority).                                                                                     │
+     │                                                                                                │
+     │ Ralph Loop Execution                                                                           │
+     │                                                                                                │
+     │ - Each module = one ralph loop iteration                                                       │
+     │ - Every iteration must end with npm run build succeeding (working, buildable state)            │
+     │ - Create PROGRESS.md in Module 12 to track completion                                          │
+     │ - If a module is too large for one pass, split at file boundary                                │
+     ╰────────────────────────────────────────────────────────────────────────────────────────────────╯

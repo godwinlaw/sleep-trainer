@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Slate Blue */
+  --color-slate-blue-50: #F0F3F8;
+  --color-slate-blue-100: #D9E0ED;
+  --color-slate-blue-200: #B3C1DB;
+  --color-slate-blue-300: #8DA2C9;
+  --color-slate-blue-400: #7B8EB5;
+  --color-slate-blue-500: #6478A0;
+  --color-slate-blue-600: #4F6089;
+  --color-slate-blue-700: #3D4B6B;
+  --color-slate-blue-800: #2B364D;
+  --color-slate-blue-900: #1A2030;
+
+  /* Soft Teal */
+  --color-soft-teal-50: #EDF7F5;
+  --color-soft-teal-100: #D0ECE6;
+  --color-soft-teal-200: #A1D9CE;
+  --color-soft-teal-300: #72C6B5;
+  --color-soft-teal-400: #5BB8A5;
+  --color-soft-teal-500: #48A08E;
+  --color-soft-teal-600: #3A8273;
+  --color-soft-teal-700: #2C6358;
+  --color-soft-teal-800: #1E453D;
+  --color-soft-teal-900: #102622;
+
+  /* Warm Cream */
+  --color-warm-cream-50: #FFFDF9;
+  --color-warm-cream-100: #FFF9F0;
+  --color-warm-cream-200: #FFF3E0;
+  --color-warm-cream-300: #FFECD0;
+  --color-warm-cream-400: #FFE0B2;
+  --color-warm-cream-500: #F5D1A0;
+  --color-warm-cream-600: #D4A96E;
+  --color-warm-cream-700: #A07D4E;
+  --color-warm-cream-800: #6B5334;
+  --color-warm-cream-900: #36291A;
+
+  /* Muted Rose */
+  --color-muted-rose-50: #FBF2F2;
+  --color-muted-rose-100: #F5DCDC;
+  --color-muted-rose-200: #E8B8B8;
+  --color-muted-rose-300: #DB9494;
+  --color-muted-rose-400: #D4A5A5;
+  --color-muted-rose-500: #C07878;
+  --color-muted-rose-600: #A85C5C;
+  --color-muted-rose-700: #7F4545;
+  --color-muted-rose-800: #562F2F;
+  --color-muted-rose-900: #2D1818;
+
+  /* Semantic */
+  --color-success: #48A08E;
+  --color-caution: #E5A440;
+  --color-danger: #C85C5C;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.08);
+
+  /* Spacing */
+  --radius-card: 1rem;
+}
+
+:root {
+  --background: #FFFDF9;
+  --foreground: #1A2030;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-slate-blue-400);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Glow ring on inputs */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(107, 190, 174, 0.3);
+  border-color: var(--color-soft-teal-400);
+}
+
+/* iOS safe area */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
