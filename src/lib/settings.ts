@@ -30,11 +30,18 @@ export async function updateSettings(updates: Partial<AppSettings>): Promise<voi
 export function subscribeSettings(
   callback: (settings: AppSettings) => void
 ): () => void {
-  return onSnapshot(settingsRef(), (snap) => {
-    if (!snap.exists()) {
+  return onSnapshot(
+    settingsRef(),
+    (snap) => {
+      if (!snap.exists()) {
+        callback(defaultSettings);
+        return;
+      }
+      callback({ ...defaultSettings, ...snap.data() } as AppSettings);
+    },
+    (error) => {
+      console.error("subscribeSettings error:", error);
       callback(defaultSettings);
-      return;
     }
-    callback({ ...defaultSettings, ...snap.data() } as AppSettings);
-  });
+  );
 }

@@ -87,8 +87,13 @@ export default function NapForm({ editNap, onSaved }: NapFormProps) {
         });
       }
       onSaved?.();
-    } catch {
-      setError("Failed to save nap. Please try again.");
+    } catch (err: any) {
+      console.error("Error saving nap:", err);
+      if (err?.code === "permission-denied") {
+        setError("Firebase Error: Missing or insufficient permissions. Please check Firestore security rules.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to save nap. Please try again.");
+      }
     } finally {
       setSaving(false);
     }

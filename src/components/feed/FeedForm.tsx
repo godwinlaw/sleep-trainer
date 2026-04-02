@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -11,7 +11,8 @@ import { addFeed, updateFeed, computeBreastOz } from "@/lib/feeds";
 import { getFeedType, getDateString, fromTimestamp } from "@/lib/date-utils";
 import { TARGET_DAY_FEEDS } from "@/lib/constants";
 import type { FeedRecord } from "@/lib/types";
-import { useFeeds } from "@/hooks/useFeeds";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface FeedFormProps {
   editFeed?: FeedRecord | null;
@@ -42,8 +43,14 @@ export default function FeedForm({ editFeed, onSaved }: FeedFormProps) {
   const [notes, setNotes] = useState(editFeed?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [dayFeedCount, setDayFeedCount] = useState(0);
 
-  const { dayFeeds } = useFeeds(date);
+  useEffect(() => {
+    const q = query(collection(db, "feeds"), where("date", "==", date), where("type", "==", "day"));
+    return onSnapshot(q, (snap) => {
+      setDayFeedCount(snap.size);
+    });
+  }, [date]);
 
   const startDate = useMemo(() => {
     const [h, m] = time.split(":").map(Number);
@@ -54,9 +61,9 @@ export default function FeedForm({ editFeed, onSaved }: FeedFormProps) {
   const feedType = getFeedType(startDate);
 
   const currentDayFeedCount = useMemo(() => {
-    if (editFeed && editFeed.type === "day") return dayFeeds.length - 1;
-    return dayFeeds.length;
-  }, [dayFeeds, editFeed]);
+    if (editFeed && editFeed.type === "day") return dayFeedCount - 1;
+    return dayFeedCount;
+  }, [dayFeedCount, editFeed]);
 
   const computedOz = useMemo(() => {
     if (method === "breast" && durationMin) {
@@ -98,8 +105,13 @@ export default function FeedForm({ editFeed, onSaved }: FeedFormProps) {
         });
       }
       onSaved?.();
-    } catch {
-      setError("Failed to save feed. Please try again.");
+    } catch (err: any) {
+      console.error("Error saving feed:", err);
+      if (err?.code === "permission-denied") {
+        setError("Firebase Error: Missing or insufficient permissions. Please check Firestore security rules.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to save feed. Please try again.");
+      }
     } finally {
       setSaving(false);
     }

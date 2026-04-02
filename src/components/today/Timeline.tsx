@@ -17,6 +17,8 @@ function hourToX(hour: number): number {
   return ((hour - DAY_START_HOUR) / TOTAL_HOURS) * 100;
 }
 
+const HOURS = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => DAY_START_HOUR + i);
+
 export default function Timeline({ dayFeeds, naps, nextTargetTime }: TimelineProps) {
   const now = new Date();
   const currentHour = now.getHours() + now.getMinutes() / 60;
@@ -55,8 +57,6 @@ export default function Timeline({ dayFeeds, naps, nextTargetTime }: TimelinePro
     if (h < DAY_START_HOUR || h >= NIGHT_START_HOUR) return null;
     return hourToX(h);
   }, [nextTargetTime]);
-
-  const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => DAY_START_HOUR + i);
 
   return (
     <div className="rounded-2xl bg-white p-4 shadow-[var(--shadow-card)]">
@@ -100,7 +100,7 @@ export default function Timeline({ dayFeeds, naps, nextTargetTime }: TimelinePro
 
         {/* Hour labels */}
         <div className="mt-1 flex justify-between">
-          {hours.filter((_, i) => i % 2 === 0).map((h) => (
+          {HOURS.filter((_, i) => i % 2 === 0).map((h) => (
             <span key={h} className="text-[9px] text-slate-blue-400">
               {h > 12 ? `${h - 12}p` : h === 12 ? "12p" : `${h}a`}
             </span>

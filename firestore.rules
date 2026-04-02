@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAllowedUser() {
+      return request.auth != null && request.auth.token.email in [
+        'godwin.law@acts2.network',
+        'godwinlaw1993@gmail.com',
+        'andrea.law@acts2.network',
+        '1996andreall@gmail.com',
+        'andreasemail222@gmail.com'
+      ];
+    }
+
+    match /{document=**} {
+      allow read, write: if isAllowedUser();
+    }
+  }
+}

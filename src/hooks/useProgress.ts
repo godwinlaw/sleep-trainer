@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { FeedRecord, NapRecord } from "@/lib/types";
@@ -54,50 +54,34 @@ export function useProgress(numDays: number = 14): UseProgressResult {
         d.setDate(d.getDate() + 1);
       }
 
-      const feedsSnap = await getDocs(
-        query(
-          collection(db, "feeds"),
-          where("date", ">=", startStr),
-          where("date", "<=", endStr),
-          orderBy("date"),
-          orderBy("startTime", "asc")
-        )
-      );
+      const [feedsSnap, napsSnap] = await Promise.all([
+        getDocs(
+          query(
+            collection(db, "feeds"),
+            where("date", ">=", startStr),
+            where("date", "<=", endStr),
+            orderBy("date"),
+            orderBy("startTime", "asc")
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, "naps"),
+            where("date", ">=", startStr),
+            where("date", "<=", endStr),
+            orderBy("date"),
+            orderBy("startTime", "asc")
+          )
+        ),
+      ]);
       const allFeeds = feedsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as FeedRecord[];
-
-      const napsSnap = await getDocs(
-        query(
-          collection(db, "naps"),
-          where("date", ">=", startStr),
-          where("date", "<=", endStr),
-          orderBy("date"),
-          orderBy("startTime", "asc")
-        )
-      );
       const allNaps = napsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as NapRecord[];
-
-      // Also fetch night feeds (previous night 8PM to 8AM for each date)
-      const nightFeedsSnap = await getDocs(
-        query(
-          collection(db, "feeds"),
-          where("type", "==", "night"),
-          where("date", ">=", getDateString(new Date(startDate.getTime() - 86400000))),
-          where("date", "<=", endStr),
-          orderBy("date"),
-          orderBy("startTime", "asc")
-        )
-      );
-      const allNightFeeds = nightFeedsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as FeedRecord[];
 
       if (cancelled) return;
 
       const result: DayProgress[] = dates.map((dateStr) => {
         const dayFeeds = allFeeds.filter((f) => f.date === dateStr && f.type === "day");
-        const nightFeeds = allNightFeeds.filter((f) => {
-          // Night feeds for this date: feeds on the previous day after 8PM or on this day before 8AM
-          // Simplified: use the date field and type
-          return f.date === dateStr && f.type === "night";
-        });
+        const nightFeeds = allFeeds.filter((f) => f.date === dateStr && f.type === "night");
         const naps = allNaps.filter((n) => n.date === dateStr);
         const morningNap = naps.find((n) => n.napType === "morning");
         const afternoonNap = naps.find((n) => n.napType === "afternoon");
@@ -123,18 +107,23 @@ export function useProgress(numDays: number = 14): UseProgressResult {
     return () => { cancelled = true; };
   }, [numDays]);
 
-  const milestones = detectNightMilestones(
-    days.map((d) => ({
-      date: d.date,
-      feedCount: d.nightFeedCount,
-      longestStretch: d.longestNightStretch,
-    }))
+  const milestones = useMemo(
+    () =>
+      detectNightMilestones(
+        days.map((d) => ({
+          date: d.date,
+          feedCount: d.nightFeedCount,
+          longestStretch: d.longestNightStretch,
+        }))
+      ),
+    [days]
   );
 
-  const daysWithNaps = days.filter((d) => d.morningNapMet || d.afternoonNapMet);
-  const napConsistency = days.length > 0
-    ? Math.round((daysWithNaps.filter((d) => d.morningNapMet && d.afternoonNapMet).length / days.length) * 100)
-    : 0;
+  const napConsistency = useMemo(() => {
+    if (days.length === 0) return 0;
+    const bothNapsMet = days.filter((d) => d.morningNapMet && d.afternoonNapMet).length;
+    return Math.round((bothNapsMet / days.length) * 100);
+  }, [days]);
 
   return { days, milestones, napConsistency, loading };
 }

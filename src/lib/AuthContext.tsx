@@ -1,43 +1,62 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { auth, googleProvider } from "./firebase";
 
 interface AuthContextType {
   authenticated: boolean;
-  login: (password: string) => boolean;
-  logout: () => void;
+  loading: boolean;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   authenticated: false,
-  login: () => false,
-  logout: () => {},
+  loading: true,
+  login: async () => {},
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("st-auth");
-    if (stored === "1") setAuthenticated(true);
-  }, []);
-
-  const login = useCallback((password: string) => {
-    if (password === process.env.NEXT_PUBLIC_APP_PASSWORD) {
-      setAuthenticated(true);
-      sessionStorage.setItem("st-auth", "1");
-      return true;
+    if (!auth) {
+      setLoading(false);
+      return;
     }
-    return false;
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthenticated(!!user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const logout = useCallback(() => {
-    setAuthenticated(false);
-    sessionStorage.removeItem("st-auth");
+  const login = useCallback(async () => {
+    if (!auth) return;
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      console.error("Firebase auth failed:", e);
+      throw e;
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Firebase signOut failed:", e);
+    }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ authenticated, login, logout }}>
+    <AuthContext.Provider value={{ authenticated, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

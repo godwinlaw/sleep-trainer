@@ -1,5 +1,10 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  memoryLocalCache,
+} from "firebase/firestore";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,5 +17,24 @@ const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const db = getFirestore(app);
+
+function createFirestore() {
+  if (typeof window !== "undefined") {
+    try {
+      return initializeFirestore(app, {
+        localCache: memoryLocalCache(),
+      });
+    } catch {
+      // Already initialized (e.g. HMR) — return existing instance
+      return getFirestore(app);
+    }
+  }
+  return getFirestore(app);
+}
+
+export const db = createFirestore();
+
+export const auth = typeof window !== "undefined" ? getAuth(app) : undefined;
+export const googleProvider = new GoogleAuthProvider();
+
 export default app;

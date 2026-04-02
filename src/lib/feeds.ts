@@ -84,13 +84,20 @@ export function subscribeFeedsForDate(
   callback: (feeds: FeedRecord[]) => void
 ): () => void {
   const q = query(feedsCol(), where("date", "==", dateStr), orderBy("startTime", "asc"));
-  return onSnapshot(q, (snap) => {
-    const feeds: FeedRecord[] = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as FeedRecord[];
-    callback(feeds);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const feeds: FeedRecord[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as FeedRecord[];
+      callback(feeds);
+    },
+    (error) => {
+      console.error("subscribeFeedsForDate error:", error);
+      callback([]);
+    }
+  );
 }
 
 export function subscribeNightFeeds(
@@ -104,12 +111,50 @@ export function subscribeNightFeeds(
     where("startTime", "<", Timestamp.fromDate(end)),
     orderBy("startTime", "asc")
   );
-  return onSnapshot(q, (snap) => {
-    const feeds: FeedRecord[] = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() } as FeedRecord))
-      .filter((f) => f.type === "night");
-    callback(feeds);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const feeds: FeedRecord[] = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as FeedRecord))
+        .filter((f) => f.type === "night");
+      callback(feeds);
+    },
+    (error) => {
+      console.error("subscribeNightFeeds error:", error);
+      callback([]);
+    }
+  );
+}
+
+/** Subscribe to all feeds in the full day window (8 PM prev day → 8 PM current day). */
+export function subscribeDayWindow(
+  dateStr: string,
+  callback: (dayFeeds: FeedRecord[], nightFeeds: FeedRecord[]) => void
+): () => void {
+  const { start } = getNightDateRange(dateStr);
+  const windowEnd = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+  const q = query(
+    feedsCol(),
+    where("startTime", ">=", Timestamp.fromDate(start)),
+    where("startTime", "<", Timestamp.fromDate(windowEnd)),
+    orderBy("startTime", "asc")
+  );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as FeedRecord[];
+      callback(
+        all.filter((f) => f.type === "day"),
+        all.filter((f) => f.type === "night")
+      );
+    },
+    (error) => {
+      console.error("subscribeDayWindow error:", error);
+      callback([], []);
+    }
+  );
 }
 
 export function assignFeedNumbers(feeds: FeedRecord[]): FeedRecord[] {

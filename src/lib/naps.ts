@@ -52,11 +52,18 @@ export function subscribeNapsForDate(
   callback: (naps: NapRecord[]) => void
 ): () => void {
   const q = query(napsCol(), where("date", "==", dateStr), orderBy("startTime", "asc"));
-  return onSnapshot(q, (snap) => {
-    const naps: NapRecord[] = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as NapRecord[];
-    callback(naps);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const naps: NapRecord[] = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as NapRecord[];
+      callback(naps);
+    },
+    (error) => {
+      console.error("subscribeNapsForDate error:", error);
+      callback([]);
+    }
+  );
 }

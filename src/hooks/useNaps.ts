@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { NapRecord } from "@/lib/types";
 import { subscribeNapsForDate } from "@/lib/naps";
 
@@ -29,8 +29,8 @@ export function useNaps(dateStr: string): UseNapsResult {
     return () => unsub();
   }, [dateStr]);
 
-  const morningNap = naps.find((n) => n.napType === "morning") ?? null;
-  const afternoonNap = naps.find((n) => n.napType === "afternoon") ?? null;
+  const morningNap = useMemo(() => naps.find((n) => n.napType === "morning") ?? null, [naps]);
+  const afternoonNap = useMemo(() => naps.find((n) => n.napType === "afternoon") ?? null, [naps]);
 
   return { naps, morningNap, afternoonNap, loading, error };
 }
